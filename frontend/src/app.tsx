@@ -25,6 +25,7 @@ export default function App() {
   const [indexed, setIndexed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
+  const [collectionId, setCollectionId] = useState<string>("default");
   const [isTyping, setIsTyping] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [uploadStage, setUploadStage] = useState<UploadStage>("idle");
@@ -39,6 +40,7 @@ export default function App() {
     const sid = localStorage.getItem("session_id") || crypto.randomUUID();
     localStorage.setItem("session_id", sid);
     sessionIdRef.current = sid;
+    console.log("Session ID initialized:", sid);
   }, []);
 
   useEffect(() => {
@@ -68,14 +70,22 @@ export default function App() {
     setIsTyping(true);
 
     try {
-      const data = await chatApi(sessionIdRef.current, content);
+      console.log("Sending chat request:", {
+        sessionId: sessionIdRef.current,
+        message: content,
+        collectionId: collectionId,
+      });
+
+      const data = await chatApi(sessionIdRef.current, content, collectionId);
       const assistantMessage: Msg = {
         role: "assistant",
         content: data.answer,
         timestamp: new Date(),
       };
       setMessages((m) => [...m, assistantMessage]);
-    } catch {
+      console.log("Chat response received:", data);
+    } catch (error) {
+      console.error("Chat error:", error);
       const errorMessage: Msg = {
         role: "assistant",
         content:
@@ -216,18 +226,31 @@ export default function App() {
       // Run simulated progress + real ingest in parallel
       const progressPromise = simulateUploadProgress();
       const uploadPromise = ingestApi(file);
-      await Promise.all([progressPromise, uploadPromise]);
+      const [, uploadResult] = await Promise.all([
+        progressPromise,
+        uploadPromise,
+      ]);
 
+      // Generate unique collection ID based on file and timestamp
+      const newCollectionId = uploadResult.collection_id || `doc_${Date.now()}`;
+      setCollectionId(newCollectionId);
       setIndexed(true);
       setUploadedFile(file.name);
       setUploadStage("complete");
 
+      console.log("Document uploaded successfully:", {
+        fileName: file.name,
+        collectionId: newCollectionId,
+        sessionId: sessionIdRef.current,
+      });
+
+      // Add welcome message to existing messages, don't replace them
       const welcomeMessage: Msg = {
         role: "assistant",
         content: `🎉 Perfect! I've successfully processed "${file.name}" and it's ready for analysis.\n\n✅ Text extracted and cleaned\n✅ Split into searchable chunks\n✅ Enhanced with AI embeddings\n✅ Indexed for instant retrieval\n\nYou can now ask me anything about the document content!`,
         timestamp: new Date(),
       };
-      setMessages([welcomeMessage]);
+      setMessages((prevMessages) => [...prevMessages, welcomeMessage]);
     } catch (e) {
       console.error("Ingest failed with error:", e);
       setUploadStage("idle");
@@ -270,379 +293,392 @@ export default function App() {
         </div>
       </header>
 
-      <main className={styles.chatInterface}>
-        {/* Upload Section */}
-        <section className={styles.uploadSection}>
-          <div className={styles.uploadContainer}>
-            {!indexed ? (
-              <>
-                {uploadStage === "idle" ? (
-                  <div
-                    className={`${styles.uploadArea} ${
-                      dragOver ? styles.dragOver : ""
-                    }`}
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onClick={() => fileRef.current?.click()}
-                    role="button"
-                    aria-label="Upload PDF"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ")
-                        fileRef.current?.click();
-                    }}
-                  >
-                    <div className={styles.uploadIcon}>📄</div>
-                    <h3 className={styles.uploadTitle}>
-                      Upload Your PDF Document
-                    </h3>
-                    <p className={styles.uploadText}>
-                      <strong>Click to browse</strong> or drag and drop your PDF
-                      file here
-                    </p>
-                    <div className={styles.uploadRequirements}>
-                      <div className={styles.requirement}>
-                        <span className={styles.checkIcon}>✓</span>
-                        <span>PDF format only</span>
-                      </div>
-                      <div className={styles.requirement}>
-                        <span className={styles.checkIcon}>✓</span>
-                        <span>Maximum 10MB file size</span>
-                      </div>
-                      <div className={styles.requirement}>
-                        <span className={styles.checkIcon}>✓</span>
-                        <span>Text-based or scanned documents</span>
-                      </div>
-                    </div>
-                    <input
-                      type="file"
-                      ref={fileRef}
-                      accept="application/pdf"
-                      className={styles.fileInput}
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) handleFileUpload(f);
-                      }}
-                    />
-                    <button
-                      className={styles.uploadButton}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        fileRef.current?.click();
-                      }}
-                      disabled={busy}
-                    >
-                      Choose File
-                    </button>
-                  </div>
-                ) : (
-                  <div className={styles.processingArea}>
-                    <div className={styles.processingHeader}>
-                      <div className={styles.processingIcon}>
-                        {uploadStage === "complete" ? "✅" : "🔄"}
-                      </div>
-                      <h3 className={styles.processingTitle}>
-                        {uploadStage === "complete"
-                          ? "Processing Complete!"
-                          : "Processing Document..."}
-                      </h3>
-                    </div>
-
-                    <div className={styles.progressContainer}>
-                      <div className={styles.progressBar}>
-                        <div
-                          className={styles.progressFill}
-                          style={{ width: `${uploadProgress}%` }}
-                        />
-                      </div>
-                      <div className={styles.progressText}>
-                        {Math.min(Math.round(uploadProgress), 100)}% complete
-                      </div>
-                    </div>
-
-                    <div className={styles.processingSteps}>
-                      <div
-                        className={`${styles.step} ${
-                          uploadStage === "uploading" || uploadProgress > 0
-                            ? styles.active
-                            : ""
-                        } ${uploadProgress > 16 ? styles.completed : ""}`}
-                      >
-                        <span className={styles.stepIcon}>
-                          {uploadProgress > 16 ? "✅" : "📤"}
-                        </span>
-                        <span>Uploading file</span>
-                      </div>
-                      <div
-                        className={`${styles.step} ${
-                          uploadStage === "processing" || uploadProgress > 16
-                            ? styles.active
-                            : ""
-                        } ${uploadProgress > 40 ? styles.completed : ""}`}
-                      >
-                        <span className={styles.stepIcon}>
-                          {uploadProgress > 40 ? "✅" : "📝"}
-                        </span>
-                        <span>Extracting text</span>
-                      </div>
-                      <div
-                        className={`${styles.step} ${
-                          uploadStage === "chunking" || uploadProgress > 40
-                            ? styles.active
-                            : ""
-                        } ${uploadProgress > 60 ? styles.completed : ""}`}
-                      >
-                        <span className={styles.stepIcon}>
-                          {uploadProgress > 60 ? "✅" : "✂️"}
-                        </span>
-                        <span>Creating chunks</span>
-                      </div>
-                      <div
-                        className={`${styles.step} ${
-                          uploadStage === "embedding" || uploadProgress > 60
-                            ? styles.active
-                            : ""
-                        } ${uploadProgress > 85 ? styles.completed : ""}`}
-                      >
-                        <span className={styles.stepIcon}>
-                          {uploadProgress > 85 ? "✅" : "🧠"}
-                        </span>
-                        <span>AI embeddings</span>
-                      </div>
-                      <div
-                        className={`${styles.step} ${
-                          uploadStage === "indexing" || uploadProgress > 85
-                            ? styles.active
-                            : ""
-                        } ${uploadProgress > 95 ? styles.completed : ""}`}
-                      >
-                        <span className={styles.stepIcon}>
-                          {uploadProgress > 95 ? "✅" : "🔍"}
-                        </span>
-                        <span>Building index</span>
-                      </div>
-                    </div>
-
-                    <p className={styles.processingMessage}>
-                      {processingMessage}
-                    </p>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className={styles.successState}>
-                <div className={styles.successIcon}>🎉</div>
-                <div className={styles.successContent}>
-                  <h3 className={styles.successTitle}>Document Ready!</h3>
-                  <p className={styles.successFile}>{uploadedFile}</p>
-                  <p className={styles.successSubtext}>
-                    Your document has been processed and is ready for AI-powered
-                    questions
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setIndexed(false);
-                    setUploadedFile(null);
-                    setMessages([]);
-                    setUploadStage("idle");
-                    setUploadProgress(0);
-                    setProcessingMessage("");
-                    if (fileRef.current) fileRef.current.value = "";
+      <main
+        className={`${styles.chatInterface} ${
+          !indexed
+            ? uploadStage === "idle"
+              ? styles.uploadMode
+              : styles.processingMode
+            : messages.length === 0
+            ? styles.emptyMode
+            : styles.chatMode
+        }`}
+      >
+        {/* Upload Section - Only show when not indexed */}
+        {!indexed && (
+          <section
+            className={`${styles.uploadSection} ${
+              uploadStage === "idle"
+                ? styles.uploadIdle
+                : styles.uploadProcessing
+            }`}
+          >
+            <div className={styles.uploadContainer}>
+              {uploadStage === "idle" ? (
+                <div
+                  className={`${styles.uploadArea} ${
+                    dragOver ? styles.dragOver : ""
+                  }`}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onClick={() => fileRef.current?.click()}
+                  role="button"
+                  aria-label="Upload PDF"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ")
+                      fileRef.current?.click();
                   }}
-                  className={styles.newDocumentButton}
                 >
-                  Upload New Document
-                </button>
-              </div>
-            )}
-          </div>
-        </section>
+                  <div className={styles.uploadIcon}>📄</div>
+                  <h3 className={styles.uploadTitle}>
+                    Upload Your PDF Document
+                  </h3>
+                  <p className={styles.uploadText}>
+                    <strong>Click to browse</strong> or drag and drop your PDF
+                    file here
+                  </p>
+                  <div className={styles.uploadRequirements}>
+                    <div className={styles.requirement}>
+                      <span className={styles.checkIcon}>✓</span>
+                      <span>PDF format only</span>
+                    </div>
+                    <div className={styles.requirement}>
+                      <span className={styles.checkIcon}>✓</span>
+                      <span>Maximum 10MB file size</span>
+                    </div>
+                    <div className={styles.requirement}>
+                      <span className={styles.checkIcon}>✓</span>
+                      <span>Text-based or scanned documents</span>
+                    </div>
+                  </div>
+                  <input
+                    type="file"
+                    ref={fileRef}
+                    accept="application/pdf"
+                    className={styles.fileInput}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleFileUpload(f);
+                    }}
+                  />
+                  <button
+                    className={styles.uploadButton}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      fileRef.current?.click();
+                    }}
+                    disabled={busy}
+                  >
+                    Choose File
+                  </button>
+                </div>
+              ) : (
+                <div className={styles.processingArea}>
+                  <div className={styles.processingHeader}>
+                    <div className={styles.processingIcon}>
+                      {uploadStage === "complete" ? "✅" : "🔄"}
+                    </div>
+                    <h3 className={styles.processingTitle}>
+                      {uploadStage === "complete"
+                        ? "Processing Complete!"
+                        : "Processing Document..."}
+                    </h3>
+                  </div>
 
-        {/* Messages Section */}
-        <section className={styles.messagesContainer}>
-          {messages.length === 0 ? (
-            <div className={styles.emptyState}>
-              <div className={styles.emptyStateIcon}>
-                {indexed ? "🤖" : "📄"}
-              </div>
-              <h3 className={styles.emptyStateTitle}>
-                {indexed
-                  ? "Ready to Answer Your Questions!"
-                  : "Upload a Document to Get Started"}
-              </h3>
-              <p className={styles.emptyStateText}>
-                {indexed
-                  ? "I've analyzed your document and I'm ready to help. Ask me anything about the content!"
-                  : "Upload a PDF document and I'll help you extract insights, answer questions, and summarize key information."}
-              </p>
-              {indexed && (
-                <div className={styles.suggestionChips}>
-                  <button
-                    className={styles.suggestionChip}
-                    onClick={() =>
-                      setInput(
-                        "What are the main topics covered in this document?"
-                      )
-                    }
-                  >
-                    📋 Main topics
-                  </button>
-                  <button
-                    className={styles.suggestionChip}
-                    onClick={() =>
-                      setInput("Can you provide a summary of this document?")
-                    }
-                  >
-                    📝 Summary
-                  </button>
-                  <button
-                    className={styles.suggestionChip}
-                    onClick={() =>
-                      setInput(
-                        "What are the key conclusions or recommendations?"
-                      )
-                    }
-                  >
-                    💡 Key insights
-                  </button>
+                  <div className={styles.progressContainer}>
+                    <div className={styles.progressBar}>
+                      <div
+                        className={styles.progressFill}
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                    <div className={styles.progressText}>
+                      {Math.min(Math.round(uploadProgress), 100)}% complete
+                    </div>
+                  </div>
+
+                  <div className={styles.processingSteps}>
+                    <div
+                      className={`${styles.step} ${
+                        uploadStage === "uploading" || uploadProgress > 0
+                          ? styles.active
+                          : ""
+                      } ${uploadProgress > 16 ? styles.completed : ""}`}
+                    >
+                      <span className={styles.stepIcon}>
+                        {uploadProgress > 16 ? "✅" : "📤"}
+                      </span>
+                      <span>Uploading file</span>
+                    </div>
+                    <div
+                      className={`${styles.step} ${
+                        uploadStage === "processing" || uploadProgress > 16
+                          ? styles.active
+                          : ""
+                      } ${uploadProgress > 40 ? styles.completed : ""}`}
+                    >
+                      <span className={styles.stepIcon}>
+                        {uploadProgress > 40 ? "✅" : "📝"}
+                      </span>
+                      <span>Extracting text</span>
+                    </div>
+                    <div
+                      className={`${styles.step} ${
+                        uploadStage === "chunking" || uploadProgress > 40
+                          ? styles.active
+                          : ""
+                      } ${uploadProgress > 60 ? styles.completed : ""}`}
+                    >
+                      <span className={styles.stepIcon}>
+                        {uploadProgress > 60 ? "✅" : "✂️"}
+                      </span>
+                      <span>Creating chunks</span>
+                    </div>
+                    <div
+                      className={`${styles.step} ${
+                        uploadStage === "embedding" || uploadProgress > 60
+                          ? styles.active
+                          : ""
+                      } ${uploadProgress > 85 ? styles.completed : ""}`}
+                    >
+                      <span className={styles.stepIcon}>
+                        {uploadProgress > 85 ? "✅" : "🧠"}
+                      </span>
+                      <span>AI embeddings</span>
+                    </div>
+                    <div
+                      className={`${styles.step} ${
+                        uploadStage === "indexing" || uploadProgress > 85
+                          ? styles.active
+                          : ""
+                      } ${uploadProgress > 95 ? styles.completed : ""}`}
+                    >
+                      <span className={styles.stepIcon}>
+                        {uploadProgress > 95 ? "✅" : "🔍"}
+                      </span>
+                      <span>Building index</span>
+                    </div>
+                  </div>
+
+                  <p className={styles.processingMessage}>
+                    {processingMessage}
+                  </p>
                 </div>
               )}
             </div>
-          ) : (
-            <>
-              {messages.map((message, i) => (
-                <div
-                  key={i}
-                  className={`${styles.messageWrapper} ${styles[message.role]}`}
-                >
-                  <div className={`${styles.avatar} ${styles[message.role]}`}>
-                    {message.role === "user" ? "👤" : "🤖"}
+          </section>
+        )}
+
+        {/* Messages Section - Only show when indexed */}
+        {indexed && (
+          <>
+            <section className={styles.messagesContainer}>
+              {messages.length === 0 ? (
+                <div className={styles.emptyState}>
+                  <div className={styles.emptyStateIcon}>🤖</div>
+                  <h3 className={styles.emptyStateTitle}>
+                    Ready to Answer Your Questions!
+                  </h3>
+                  <p className={styles.emptyStateText}>
+                    I've analyzed your document and I'm ready to help. Ask me
+                    anything about the content!
+                  </p>
+                  <div className={styles.suggestionChips}>
+                    <button
+                      className={styles.suggestionChip}
+                      onClick={() =>
+                        setInput(
+                          "What are the main topics covered in this document?"
+                        )
+                      }
+                    >
+                      📋 Main topics
+                    </button>
+                    <button
+                      className={styles.suggestionChip}
+                      onClick={() =>
+                        setInput("Can you provide a summary of this document?")
+                      }
+                    >
+                      📝 Summary
+                    </button>
+                    <button
+                      className={styles.suggestionChip}
+                      onClick={() =>
+                        setInput(
+                          "What are the key conclusions or recommendations?"
+                        )
+                      }
+                    >
+                      💡 Key insights
+                    </button>
                   </div>
-                  <div className={styles.messageContainer}>
+                  <div className={styles.documentInfo}>
+                    <p className={styles.documentName}>📄 {uploadedFile}</p>
+                    <button
+                      onClick={() => {
+                        // Generate new session ID for fresh start
+                        const newSessionId = crypto.randomUUID();
+                        localStorage.setItem("session_id", newSessionId);
+                        sessionIdRef.current = newSessionId;
+
+                        // Reset all state
+                        setIndexed(false);
+                        setUploadedFile(null);
+                        setCollectionId("default");
+                        setMessages([]);
+                        setUploadStage("idle");
+                        setUploadProgress(0);
+                        setProcessingMessage("");
+                        setInput("");
+                        if (fileRef.current) fileRef.current.value = "";
+
+                        console.log(
+                          "Reset to upload mode with new session:",
+                          newSessionId
+                        );
+                      }}
+                      className={styles.newDocumentButton}
+                    >
+                      Upload New Document
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {messages.map((message, i) => (
                     <div
-                      className={`${styles.messageBubble} ${
+                      key={i}
+                      className={`${styles.messageWrapper} ${
                         styles[message.role]
                       }`}
                     >
-                      <div className={styles.messageContent}>
-                        {message.content}
+                      <div
+                        className={`${styles.avatar} ${styles[message.role]}`}
+                      >
+                        {message.role === "user" ? "👤" : "🤖"}
                       </div>
-                      {message.role === "assistant" && (
-                        <button
-                          className={styles.copyButton}
-                          onClick={() =>
-                            navigator.clipboard.writeText(message.content)
-                          }
-                          title="Copy message"
+                      <div className={styles.messageContainer}>
+                        <div
+                          className={`${styles.messageBubble} ${
+                            styles[message.role]
+                          }`}
                         >
-                          📋
-                        </button>
-                      )}
-                    </div>
-                    <div className={styles.messageTime}>
-                      {formatTime(message.timestamp)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {isTyping && (
-                <div className={`${styles.messageWrapper} ${styles.assistant}`}>
-                  <div className={`${styles.avatar} ${styles.assistant}`}>
-                    🤖
-                  </div>
-                  <div
-                    className={`${styles.messageBubble} ${styles.assistant}`}
-                  >
-                    <div className={styles.typing}>
-                      <span>AI is thinking</span>
-                      <div className={styles.typingDots}>
-                        <div className={styles.typingDot} />
-                        <div className={styles.typingDot} />
-                        <div className={styles.typingDot} />
+                          <div className={styles.messageContent}>
+                            {message.content}
+                          </div>
+                          {message.role === "assistant" && (
+                            <button
+                              className={styles.copyButton}
+                              onClick={() =>
+                                navigator.clipboard.writeText(message.content)
+                              }
+                              title="Copy message"
+                            >
+                              📋
+                            </button>
+                          )}
+                        </div>
+                        <div className={styles.messageTime}>
+                          {formatTime(message.timestamp)}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </>
-          )}
-        </section>
+                  ))}
 
-        {/* Input Section */}
-        <section className={styles.inputSection}>
-          <div className={styles.inputContainer}>
-            <div className={styles.inputWrapper}>
-              <textarea
-                ref={textareaRef}
-                className={styles.messageInput}
-                placeholder={
-                  indexed
-                    ? "Ask a question about your document..."
-                    : "Upload a PDF first"
-                }
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={!indexed || busy}
-                rows={1}
-                maxLength={1000}
-              />
-              <div className={styles.inputActions}>
-                <div className={styles.characterCount}>
-                  <span className={input.length > 800 ? styles.warning : ""}>
-                    {input.length}
-                  </span>
-                  /1000
-                </div>
-                {input.trim() && (
-                  <button
-                    className={styles.clearButton}
-                    onClick={() => setInput("")}
-                    type="button"
-                    title="Clear input"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            </div>
-            <button
-              className={styles.sendButton}
-              onClick={send}
-              disabled={!indexed || busy || !input.trim()}
-              title={
-                !indexed
-                  ? "Upload a document first"
-                  : busy
-                  ? "Processing..."
-                  : "Send message"
-              }
-            >
-              {busy ? (
-                <div className={styles.spinner} />
-              ) : (
-                <>
-                  <span>Send</span>
-                  <span className={styles.sendIcon} aria-hidden>
-                    ➤
-                  </span>
+                  {isTyping && (
+                    <div
+                      className={`${styles.messageWrapper} ${styles.assistant}`}
+                    >
+                      <div className={`${styles.avatar} ${styles.assistant}`}>
+                        🤖
+                      </div>
+                      <div
+                        className={`${styles.messageBubble} ${styles.assistant}`}
+                      >
+                        <div className={styles.typing}>
+                          <span>AI is thinking</span>
+                          <div className={styles.typingDots}>
+                            <div className={styles.typingDot} />
+                            <div className={styles.typingDot} />
+                            <div className={styles.typingDot} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
                 </>
               )}
-            </button>
-          </div>
-          {indexed && !busy && (
-            <div className={styles.inputHints}>
-              <span className={styles.hint}>
-                💡 Try asking: "Summarize this document" or "What are the key
-                points?"
-              </span>
-            </div>
-          )}
-        </section>
+            </section>
+
+            {/* Input Section - Only show when indexed */}
+            <section className={styles.inputSection}>
+              <div className={styles.inputContainer}>
+                <div className={styles.inputWrapper}>
+                  <textarea
+                    ref={textareaRef}
+                    className={styles.messageInput}
+                    placeholder="Ask a question about your document..."
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    disabled={busy}
+                    rows={1}
+                    maxLength={1000}
+                  />
+                  <div className={styles.inputActions}>
+                    <div className={styles.characterCount}>
+                      <span
+                        className={input.length > 800 ? styles.warning : ""}
+                      >
+                        {input.length}
+                      </span>
+                      /1000
+                    </div>
+                    {input.trim() && (
+                      <button
+                        className={styles.clearButton}
+                        onClick={() => setInput("")}
+                        type="button"
+                        title="Clear input"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <button
+                  className={styles.sendButton}
+                  onClick={send}
+                  disabled={busy || !input.trim()}
+                  title={busy ? "Processing..." : "Send message"}
+                >
+                  {busy ? (
+                    <div className={styles.spinner} />
+                  ) : (
+                    <>
+                      <span>Send</span>
+                      <span className={styles.sendIcon} aria-hidden>
+                        ➤
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
+              {!busy && (
+                <div className={styles.inputHints}>
+                  <span className={styles.hint}>
+                    💡 Try asking: "Summarize this document" or "What are the
+                    key points?"
+                  </span>
+                </div>
+              )}
+            </section>
+          </>
+        )}
       </main>
 
       <footer className={styles.footer}>

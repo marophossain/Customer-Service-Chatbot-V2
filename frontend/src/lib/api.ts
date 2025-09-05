@@ -1,6 +1,10 @@
 const API_BASE = "http://localhost:8000";
 
-export async function chat(sessionId: string, query: string) {
+export async function chat(
+  sessionId: string,
+  query: string,
+  collectionId: string = "default"
+) {
   const response = await fetch(`${API_BASE}/chat`, {
     method: "POST",
     headers: {
@@ -9,6 +13,8 @@ export async function chat(sessionId: string, query: string) {
     body: JSON.stringify({
       session_id: sessionId,
       message: query,
+      collection_id: collectionId,
+      k: 5,
     }),
   });
 
