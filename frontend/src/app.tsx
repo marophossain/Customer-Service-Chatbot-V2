@@ -36,6 +36,16 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Function to convert **text** to bold HTML
+  const formatMessage = (content: string) => {
+    // Replace **text** with <strong>text</strong>
+    // Also handle line breaks properly
+    const formattedContent = content
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\n/g, "<br />");
+    return { __html: formattedContent };
+  };
+
   useEffect(() => {
     const sid = localStorage.getItem("session_id") || crypto.randomUUID();
     localStorage.setItem("session_id", sid);
@@ -567,7 +577,15 @@ export default function App() {
                           }`}
                         >
                           <div className={styles.messageContent}>
-                            {message.content}
+                            {message.role === "assistant" ? (
+                              <div
+                                dangerouslySetInnerHTML={formatMessage(
+                                  message.content
+                                )}
+                              />
+                            ) : (
+                              message.content
+                            )}
                           </div>
                           {message.role === "assistant" && (
                             <button

@@ -16,7 +16,7 @@
   --border-hover: #404040;
   --text-primary: #ffffff;
   --text-secondary: #a1a1a1;
-  --text-muted: #737373;
+  --text-muted: #f1f1f1;
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.2);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3),
@@ -464,16 +464,36 @@ body {
   background: var(--primary-light);
   color: var(--text-primary);
   border-bottom-right-radius: 0.5rem;
+  padding: 1rem 1.5rem 1rem 1.25rem; /* Extra padding on the right side for user messages */
 }
 
 .messageBubble.assistant {
   background: var(--surface-color);
   color: var(--text-primary);
   border-bottom-left-radius: 0.5rem;
+  padding: 1.25rem 1.25rem 1rem 1.5rem; /* Extra padding on the top and left side for assistant messages */
 }
 
 .messageContent {
   white-space: pre-wrap;
+}
+
+/* Ensure bold text in messages is properly styled */
+.messageContent strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.messageContent p {
+  margin: 0.5rem 0;
+}
+
+.messageContent p:first-child {
+  margin-top: 0;
+}
+
+.messageContent p:last-child {
+  margin-bottom: 0;
 }
 
 .copyButton {
@@ -1179,7 +1199,7 @@ body {
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background-color: #0f172a;
+    --background-color: #1a1a1a;
     --surface-color: #131314;
     --border-color: #353535;
     --text-primary: #f1f5f9;

@@ -13,14 +13,17 @@ pdf_path_map: Dict[str, str] = {}
 pdf_name_map: Dict[str, str] = {}
 active_collection: str = "default"
 
-# Lazily initialize embeddings with API key from settings to avoid relying on OS env
+# Lazily initialize embeddings with OpenAI model
 _emb_client: OpenAIEmbeddings | None = None
 
 def get_embeddings() -> OpenAIEmbeddings:
     global _emb_client
     if _emb_client is None:
-        # Pass the API key directly from settings to avoid reloader/env propagation issues
-        _emb_client = OpenAIEmbeddings(model="text-embedding-3-large", api_key=settings.OPENAI_API_KEY)
+        # Initialize OpenAI embeddings
+        _emb_client = OpenAIEmbeddings(
+            model=settings.EMBEDDING_MODEL,
+            openai_api_key=settings.OPENAI_API_KEY
+        )
     return _emb_client
 
 def _normalize(v: np.ndarray) -> np.ndarray:

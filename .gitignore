@@ -1,64 +1,152 @@
-# root
+# Environment variables and configuration
 *.env
 .env
 *.env.local
 .env.*.local
-node_modules/
-.DS_Store
-Thumbs.db
-ehthumbs.db
-desktop.ini
+.env.development
+.env.production
+.env.test
 
+# Dependencies
+node_modules/
+package-lock.json
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
 
 # Editors / IDE
 .vscode/
 .idea/
 .history/
-
+*.swp
+*.swo
+*~
 
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
 .venv/
 venv/
 env/
 env.bak/
 myenv/
-build/
-dist/
-.eggs/
-*.egg-info/
-pip-wheel-metadata/
-.tox/
+ENV/
+env.bak/
+venv.bak/
+
+# Python testing and coverage
 .pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.ipynb_checkpoints/
 .coverage
 .coverage.*
 coverage.xml
 htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.ipynb_checkpoints/
 
-
-# Node / JS
+# Node / JavaScript
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
 *.log
 .cache/
+.parcel-cache/
 .eslintcache
 .stylelintcache
 *.tsbuildinfo
+.npm
+.yarn-integrity
 
-
-# Vector store & uploads
-backend/app/storage/index/
-backend/app/storage/uploads/
-backend/storage/
-backend/storage/index/
-backend/storage/uploads/
-
-
-# Frontend
+# Frontend build outputs
 frontend/dist/
+frontend/build/
+frontend/.next/
+frontend/out/
+
+# Vector store, uploads, and application data
+backend/app/storage/
+backend/storage/
+storage/
+*.pdf
+*.txt
+*.docx
+*.doc
+uploads/
+documents/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+*.tmp
+*.temp
+.temporary/
+
+# Logs
+logs/
+*.log
+
+# API keys and secrets (additional safety)
+secrets.json
+config.local.json
+
+# OS specific
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# MacOS
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk

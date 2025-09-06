@@ -4,10 +4,10 @@ pydantic
 pydantic-settings>=2.3.0
 python-dotenv
 orjson
-openai>=1.30.0
+openai>=1.0.0
 langchain>=0.2.6
 langchain-community>=0.2.6
-langchain-openai>=0.1.8
+langchain-openai>=0.1.0
 faiss-cpu
 numpy
 rank-bm25

@@ -6,6 +6,10 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str
     RAG_API_KEY: Optional[str] = None
 
+    # Model configurations
+    LLM_MODEL: str = "gpt-4o-mini"
+    EMBEDDING_MODEL: str = "text-embedding-3-small"
+
     DATA_DIR: str = "backend/app/storage"
     INDEX_DIR: str = "backend/app/storage/index"
     UPLOAD_DIR: str = "backend/app/storage/uploads"

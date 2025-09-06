@@ -9,9 +9,21 @@ import traceback
 
 router = APIRouter()
 
+# Global LLM instance for reuse
+_llm_instance = None
+
 def get_llm():
-    """Lazy initialization of LLM to avoid issues with API key loading"""
-    return ChatOpenAI(model="gpt-4o-mini", temperature=0.2, openai_api_key=settings.OPENAI_API_KEY)
+    """Lazy initialization of LLM using OpenAI"""
+    global _llm_instance
+    if _llm_instance is None:
+        _llm_instance = ChatOpenAI(
+            model=settings.LLM_MODEL,
+            openai_api_key=settings.OPENAI_API_KEY,
+            temperature=0.7,
+            max_tokens=512
+        )
+    
+    return _llm_instance
 
 SYSTEM_PROMPT = (
     "You are a helpful, concise customer-service assistant."
@@ -60,18 +72,24 @@ async def chat(data: ChatRequest, x_api_key: Optional[str] = Header(default=None
         summary = get_summary(sid)
         formatted_history = get_formatted_history(sid)
 
-        # Create messages for OpenAI API
+        # Create messages for OpenAI chat format
+        system_content = f"{SYSTEM_PROMPT}\n\nContext from documents:\n{context}"
+        if summary:
+            system_content += f"\n\nConversation summary: {summary}"
+        if formatted_history:
+            system_content += f"\n\nPrevious messages:\n{formatted_history}"
+
         messages = [
-            {"role": "system", "content": f"{SYSTEM_PROMPT}\n\nCONTEXT:\n{context}\n\nCONVERSATION SUMMARY:\n{summary or 'N/A'}\n\nPREVIOUS CONVERSATION:\n{formatted_history}"},
+            {"role": "system", "content": system_content},
             {"role": "user", "content": data.message}
         ]
 
         print("Sending request to OpenAI...")
         llm = get_llm()
         
-        # Use synchronous invoke instead of agenerate
+        # Use invoke method with messages
         response = llm.invoke(messages)
-        answer = response.content
+        answer = response.content.strip()
 
         print(f"OpenAI response: {answer}")
         add_turn(sid, data.message, answer)
