@@ -13,12 +13,6 @@ type UploadStage =
   | "indexing"
   | "complete";
 
-interface UploadProgress {
-  stage: UploadStage;
-  progress: number;
-  message: string;
-}
-
 export default function App() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -50,7 +44,6 @@ export default function App() {
     const sid = localStorage.getItem("session_id") || crypto.randomUUID();
     localStorage.setItem("session_id", sid);
     sessionIdRef.current = sid;
-    console.log("Session ID initialized:", sid);
   }, []);
 
   useEffect(() => {
@@ -80,12 +73,6 @@ export default function App() {
     setIsTyping(true);
 
     try {
-      console.log("Sending chat request:", {
-        sessionId: sessionIdRef.current,
-        message: content,
-        collectionId: collectionId,
-      });
-
       const data = await chatApi(sessionIdRef.current, content, collectionId);
       const assistantMessage: Msg = {
         role: "assistant",
@@ -93,9 +80,7 @@ export default function App() {
         timestamp: new Date(),
       };
       setMessages((m) => [...m, assistantMessage]);
-      console.log("Chat response received:", data);
     } catch (error) {
-      console.error("Chat error:", error);
       const errorMessage: Msg = {
         role: "assistant",
         content:
@@ -248,12 +233,6 @@ export default function App() {
       setUploadedFile(file.name);
       setUploadStage("complete");
 
-      console.log("Document uploaded successfully:", {
-        fileName: file.name,
-        collectionId: newCollectionId,
-        sessionId: sessionIdRef.current,
-      });
-
       // Add welcome message to existing messages, don't replace them
       const welcomeMessage: Msg = {
         role: "assistant",
@@ -262,7 +241,6 @@ export default function App() {
       };
       setMessages((prevMessages) => [...prevMessages, welcomeMessage]);
     } catch (e) {
-      console.error("Ingest failed with error:", e);
       setUploadStage("idle");
       const errorMessage: Msg = {
         role: "assistant",
@@ -544,11 +522,6 @@ export default function App() {
                         setProcessingMessage("");
                         setInput("");
                         if (fileRef.current) fileRef.current.value = "";
-
-                        console.log(
-                          "Reset to upload mode with new session:",
-                          newSessionId
-                        );
                       }}
                       className={styles.newDocumentButton}
                     >
