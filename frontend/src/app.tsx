@@ -711,7 +711,8 @@ export default function App() {
         </div>
         <div className={styles.footerBottom}>
           <p>
-            &copy; 2025 AI Document Assistant. Built with ❤️ for productivity.
+            &copy; 2025 AI Document Assistant. Built with mdmarophossain for
+            productivity.
           </p>
         </div>
       </footer>

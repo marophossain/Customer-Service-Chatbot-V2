@@ -1180,8 +1180,8 @@ body {
 @media (prefers-color-scheme: dark) {
   :root {
     --background-color: #0f172a;
-    --surface-color: #1e293b;
-    --border-color: #334155;
+    --surface-color: #131314;
+    --border-color: #353535;
     --text-primary: #f1f5f9;
     --text-secondary: #cbd5e1;
     --text-muted: #64748b;
